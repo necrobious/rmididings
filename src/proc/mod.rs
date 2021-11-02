@@ -627,7 +627,7 @@ define_generator!(
     /// ```
     Ctrl(u32, i32)
     fn generate_single(&self) -> Event<'static> {
-        CtrlEvent(0, 0, self.0, self.1)
+        CtrlEvent(CtrlEventType::Controller,0, 0, self.0, self.1)
     }
 );
 
@@ -1191,8 +1191,8 @@ impl FilterTrait for Discard {
 pub struct Panic();
 impl FilterTrait for Panic {
     fn run(&self, evs: &mut EventStream) {
-        evs.extend((0..16).map(|c| CtrlEvent(0, c, 123, 0)));
-        evs.extend((0..16).map(|c| CtrlEvent(0, c,  64, 0)));
+        evs.extend((0..16).map(|c| CtrlEvent(CtrlEventType::Controller,0, c, 123, 0)));
+        evs.extend((0..16).map(|c| CtrlEvent(CtrlEventType::Controller,0, c,  64, 0)));
     }
 }
 

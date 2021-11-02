@@ -21,6 +21,23 @@ pub enum Event<'a> {
     #[cfg(feature = "dbus")]
     Dbus(DbusEventImpl),
 }
+
+#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
+pub enum CtrlEventType {
+    Controller,
+    ProgramChange,
+    ChannelPressure,
+    PitchBend,
+    Control14,
+    Nonregparam,
+    Regparam,
+    SongPosition,
+    SongSelect,
+    TimeCodeQuarterFrame,
+    TimeSignature,
+    KeySignature,
+}
+
 impl Event<'_> {
     pub fn port(&self) -> Option<usize> {
         match self {
@@ -97,15 +114,16 @@ pub fn NoteOffEvent<'a>(port: usize, channel: u8, note: u8) -> Event<'a> {
     Event::NoteOff(NoteOffEventImpl { port, channel, note })
 }
 
-#[derive(Debug, Copy, Clone, Default, Eq, Hash, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq)]
 pub struct CtrlEventImpl {
+    pub ctrl_type: CtrlEventType,
     pub port: usize,
     pub channel: u8,
     pub ctrl: u32,
     pub value: i32,
 }
-pub fn CtrlEvent<'a>(port: usize, channel: u8, ctrl: u32, value: i32) -> Event<'a> {
-    Event::Ctrl(CtrlEventImpl { port, channel, ctrl, value })
+pub fn CtrlEvent<'a>(ctrl_type: CtrlEventType, port: usize, channel: u8, ctrl: u32, value: i32) -> Event<'a> {
+    Event::Ctrl(CtrlEventImpl { ctrl_type, port, channel, ctrl, value })
 }
 
 #[derive(Debug, Copy, Clone, Default, Eq, Hash, PartialEq)]

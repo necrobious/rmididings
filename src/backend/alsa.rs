@@ -142,7 +142,7 @@ impl Backend<'_> for AlsaBackend {
                 Ok(self.output_alsaseq_event(&ev.port, &mut alsaev)?)
             },
             Event::Ctrl(ev) => {
-                let mut alsaev = seq::Event::new(seq::EventType::Controller, &seq::EvCtrl {
+                let mut alsaev = seq::Event::new(AlsaBackend::ctrl_et_to_alsaseq_ctrl_et(ev.ctrl_type), &seq::EvCtrl {
                     channel: ev.channel, param: ev.ctrl, value: ev.value
                 });
                 Ok(self.output_alsaseq_event(&ev.port, &mut alsaev)?)
@@ -161,9 +161,46 @@ impl Backend<'_> for AlsaBackend {
 }
 
 impl AlsaBackend {
+    fn alsaseq_ctrl_et_to_ctrl_et(alsaseq_et: seq::EventType) -> Option<CtrlEventType> {
+        match alsaseq_et {
+            seq::EventType::Controller => Some(CtrlEventType::Controller),
+            seq::EventType::Pgmchange => Some(CtrlEventType::ProgramChange),
+            seq::EventType::Chanpress => Some(CtrlEventType::ChannelPressure),
+            seq::EventType::Pitchbend => Some(CtrlEventType::PitchBend),
+            seq::EventType::Control14 => Some(CtrlEventType::Control14),
+            seq::EventType::Nonregparam => Some(CtrlEventType::Nonregparam),
+            seq::EventType::Regparam => Some(CtrlEventType::Regparam),
+            seq::EventType::Songpos => Some(CtrlEventType::SongPosition),
+            seq::EventType::Songsel => Some(CtrlEventType::SongSelect),
+            seq::EventType::Qframe => Some(CtrlEventType::TimeCodeQuarterFrame),
+            seq::EventType::Timesign => Some(CtrlEventType::TimeSignature),
+            seq::EventType::Keysign => Some(CtrlEventType::KeySignature),
+            _ => None
+        }
+    }
+
+    fn ctrl_et_to_alsaseq_ctrl_et(et: CtrlEventType) -> seq::EventType {
+         match et {
+            CtrlEventType::Controller => seq::EventType::Controller,
+            CtrlEventType::ProgramChange => seq::EventType::Pgmchange,
+            CtrlEventType::ChannelPressure => seq::EventType::Chanpress,
+            CtrlEventType::PitchBend => seq::EventType::Pitchbend,
+            CtrlEventType::Control14 => seq::EventType::Control14,
+            CtrlEventType::Nonregparam => seq::EventType::Nonregparam,
+            CtrlEventType::Regparam => seq::EventType::Regparam,
+            CtrlEventType::SongPosition => seq::EventType::Songpos,
+            CtrlEventType::SongSelect => seq::EventType::Songsel,
+            CtrlEventType::TimeCodeQuarterFrame => seq::EventType::Qframe,
+            CtrlEventType::TimeSignature => seq::EventType::Timesign,
+            CtrlEventType::KeySignature => seq::EventType::Keysign,
+        }
+
+    }
+
     fn alsaseq_event_to_event<'a>(&self, alsaev: &seq::Event) -> Result<Option<Event<'a>>, Box<dyn Error>> {
         // map alsa port to our own port (index in self.in_ports), fallback to port 0
         let alsaseq_port = alsaev.get_dest().port;
+        let alsaseq_et = alsaev.get_type();
         if let Some((port, _)) = self.in_ports.iter().find(|(_, as_p)| **as_p == alsaseq_port) {
             // convert alsaseq event to our own kind of event
             if let Some(e) = alsaev.get_data::<seq::EvNote>() {
@@ -172,8 +209,8 @@ impl AlsaBackend {
                 } else {
                     return Ok(Some(NoteOffEvent(*port, e.channel, e.note)));
                 }
-            } else if let Some(e) = alsaev.get_data::<seq::EvCtrl>() {
-                return Ok(Some(CtrlEvent(*port, e.channel, e.param, e.value)));
+            } else if let Some( (e, et) ) = alsaev.get_data::<seq::EvCtrl>().and_then(|e| AlsaBackend::alsaseq_ctrl_et_to_ctrl_et(alsaseq_et).map(|et| (e, et))) {
+                return Ok(Some(CtrlEvent(et, *port, e.channel, e.param, e.value)));
             }
         }
         return Ok(None);
